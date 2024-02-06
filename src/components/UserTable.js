@@ -5,6 +5,23 @@ const UserTable = () => {
     const [users, setUsers] = useState([]);
     const [searchKey, setSearchKey] = useState('');
     const [searchValue, setSearchValue] = useState('');
+    const [sortConfig, setSortConfig] = useState({
+        key: '',
+        direction: '',
+    });
+    const [sortEnabled, setSortEnabled] = useState(true);
+    const [selectedUser, setSelectedUser] = useState(null);
+
+    const keyExtractor = (user, key) => {
+        switch (key) {
+            case 'fullName':
+                return `${user.firstName} ${user.lastName}`;
+            case 'address':
+                return `${user.address.city}, ${user.address.address}`;
+            default:
+                return user[key];
+        }
+    };
 
     const fetchData = async () => {
         try {
@@ -15,6 +32,11 @@ const UserTable = () => {
             }
 
             const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch user data');
+            }
+
             const data = await response.json();
             setUsers(data.users);
         } catch (error) {
@@ -25,6 +47,35 @@ const UserTable = () => {
     useEffect(() => {
         fetchData();
     }, [searchKey, searchValue]);
+
+    const handleSort = (key) => {
+        if (!sortEnabled) return;
+        let direction = 'asc';
+
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+
+        setSortConfig({ key, direction });
+    };
+
+    const handleUserClick = (user) => {
+        console.log('Clicked user:', user);
+        setSelectedUser(user);
+    };
+
+    const sortedUsers = sortEnabled ? users.slice().sort((a, b) => {
+        const keyA = String(keyExtractor(a, sortConfig.key));
+        const keyB = String(keyExtractor(b, sortConfig.key));
+
+        if (sortConfig.direction === 'asc') {
+            return keyA.localeCompare(keyB);
+        } else if (sortConfig.direction === 'desc') {
+            return keyB.localeCompare(keyA);
+        }
+
+        return 0;
+    }) : users;
 
     return (
         <div>
@@ -44,19 +95,29 @@ const UserTable = () => {
                     onChange={(e) => setSearchValue(e.target.value)}
                 />
             </div>
+            <div>
+                <label>
+                    <input
+                        type="checkbox"
+                        checked={sortEnabled}
+                        onChange={() => setSortEnabled(!sortEnabled)}
+                    />
+                    Enable Sorting
+                </label>
+            </div>
             <table className="user-table">
                 <thead>
                 <tr>
-                    <th>ФИО</th>
-                    <th>Возраст</th>
-                    <th>Пол</th>
-                    <th>Номер телефона</th>
-                    <th>Адрес</th>
+                    <th onClick={() => handleSort('fullName')}>Full Name</th>
+                    <th onClick={() => handleSort('age')}>Age</th>
+                    <th onClick={() => handleSort('gender')}>Gender</th>
+                    <th>Phone Number</th>
+                    <th onClick={() => handleSort('address')}>Address</th>
                 </tr>
                 </thead>
                 <tbody>
-                {users.map((user) => (
-                    <tr key={user.id}>
+                {sortedUsers.map((user) => (
+                    <tr key={user.id} onClick={() => handleUserClick(user)}>
                         <td>{`${user.firstName} ${user.lastName}`}</td>
                         <td>{user.age}</td>
                         <td>{user.gender}</td>
@@ -66,6 +127,20 @@ const UserTable = () => {
                 ))}
                 </tbody>
             </table>
+            {selectedUser && (
+                <div className="modal">
+                    <div className="modal-content">
+                        <span className="close" onClick={() => setSelectedUser(null)}>&times;</span>
+                        <h2>{`${selectedUser.firstName} ${selectedUser.lastName}`}</h2>
+                        <p>Age: {selectedUser.age}</p>
+                        <p>Address: {`${selectedUser.address.city}, ${selectedUser.address.address}`}</p>
+                        <p>Height: {selectedUser.height}</p>
+                        <p>Weight: {selectedUser.weight}</p>
+                        <p>Phone: {selectedUser.phone}</p>
+                        <p>Email: {selectedUser.email}</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
